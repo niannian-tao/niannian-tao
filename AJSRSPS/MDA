@@ -15,7 +15,7 @@ for M=1:54
     Dataset = ['CSP3forDA\testDA2S', num2str(M), '.mat'];
     load(Dataset);
     testx=[train_x' test_x']';testy=[train_y' test_y']';%trainx=[train_x' test_x']';trainy=[train_y' test_y']';%
-    [Ts,Ps,TVs,number_class]=ELMinProcessing(trainx,trainy,testx,testy);%P��ѵ�����ݣ�T��ѵ����ǩ��TV�ǲ��Լ�
+    [Ts,Ps,TVs,number_class]=inProcessing(trainx,trainy,testx,testy);%P��ѵ�����ݣ�T��ѵ����ǩ��TV�ǲ��Լ�
     TVP=TVs.P;
     n = size(Ts,2);
     for i=1:200
@@ -32,30 +32,12 @@ for M=1:54
     end
     %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%-------------CROAL
     [Zs, ZtP]=DA_CORAL(Ps',trainy',TVP');
-     %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%----mutiplekernel-ELM
-    for KC=1:12
-        for Kd=1:12
-            for Kp=1:12
-                Kernel_para=[deta(Kd) para1(Kp) 2];
-                C=Cx(KC);
-                [Kern,Y]=makeKmatrix( Zs, Ts',[],Kernel_para);
-                [gamma1,alpha1,obj1] = mkMulticlassELM(Kern,C,Y,qnorm);
-                [K_train,a1e]=makeKmatrix(Zs,Ts',[],Kernel_para);
-                Omega_train=sumKbeta(K_train,gamma1);
-                OutputWeight=((Omega_train+speye(n)/C)\(Ts'));
-                [K_test,a2e]=makeKmatrix(Zs,Ts',ZtP,Kernel_para);
-                Omega_test = sumKbeta(K_test,gamma1);
-                TY=(Omega_test' * OutputWeight)';
-                TestAccuracy_elm_CR(KC,Kd,Kp,M)=GetAccuracy(TVs.T,TY);
-            end
-        end
-    end
-    %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%------------LDA
+        %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%------------LDA
     cf_param=train_RLDAshrink(Zs',train2y);
     cf_out= real(ZtP *cf_param.w+repmat(cf_param.b', size(ZtP,1),1));
     loss_lda=1-eval_calLoss(test2y, cf_out);
     Acc_lda_CR(M)=loss_lda;
-    %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%---------------------multiplekernel-TCA
+    %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
     [gam,sig2] = tunelssvm({Zs,trainy,type,[],[],'RBF_kernel'},'simplex','leaveoneoutlssvm',{'mse'});
     [alpha,b] = trainlssvm({Zs,trainy,type,gam,sig2,'RBF_kernel'});
     pre_train_y=simlssvm({Zs,trainy,type,gam,sig2,'RBF_kernel','preprocess'},{alpha,b},ZtP);
