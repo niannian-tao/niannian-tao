@@ -86,6 +86,7 @@ for M=1:15
                         labelxs=labelxss(1:200+mm,:);
                     end
                 end
+ %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%----CDA
                 [ZMsc1]=classTST(ZMs,trainy,ZMTS,psex');
                 ZMsc=ZMsc1.*0.2+ZMs.*0.8;
                 [K_train,a1m]=makeKmatrix(ZMsc,Ts',[],Kernel_para);
