@@ -1,0 +1,44 @@
+function [T,P,TV,number_class]=ELMinProcessing(train_x,train_y,test_x,test_y)
+
+P=train_x';
+T=train_y';
+TV.P=test_x';
+TV.T=test_y';
+
+NumberofTrainingData=size(P,2);
+NumberofTestingData=size(TV.P,2)-20;
+
+sorted_target=sort(T,2);
+label=zeros(1,1);     %   Find and save in 'label' class label from training and testing data sets
+label(1,1)=sorted_target(1,1);
+j=1;
+for i = 2:NumberofTrainingData
+    if sorted_target(1,i) ~= label(1,j)
+        j=j+1;
+        label(1,j) = sorted_target(1,i);
+    end
+end
+number_class=j;
+NumberofOutputNeurons=number_class;
+%%%%%%%%%% Processing the targets of training
+temp_T=zeros(NumberofOutputNeurons, NumberofTrainingData);
+for i = 1:NumberofTrainingData
+    for j = 1:number_class
+        if label(1,j) == T(1,i)
+            break;
+        end
+    end
+    temp_T(j,i)=1;
+end
+for i = 1:NumberofTrainingData
+    for j = 1:number_class
+        if label(1,j) == TV.T(1,i)
+            break;
+        end
+    end
+    temp_TVT(j,i)=1;
+end
+
+T=temp_T*2-1;
+TV.T=temp_TVT*2-1;
+end
