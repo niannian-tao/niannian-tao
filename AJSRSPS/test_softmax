@@ -12,10 +12,10 @@ inputSize = 6 * 1; % Size of input vector (MNIST images are 28x28)
 numClasses = 2;     % Number of classes (MNIST images fall into 10 classes)
 lambda = 1e-4; % Weight decay parameter
 
-for I=3:3
-    for KC=6:6
-        for Kd=9:9
-            for Kp=7:7
+for I=1:54
+    for KC=1:12
+        for Kd=1:12
+            for Kp=1:12
                 Kernel_para=[deta(Kd) para1(Kp) 2];
                 C=Cx(KC);
                 for M=30:30
@@ -25,7 +25,7 @@ for I=3:3
                     Dataset = ['CSP3forDA\testDA2S', num2str(M), '.mat'];
                     load(Dataset);
                     testx=[train_x' test_x']';testy=[train_y' test_y']';%trainx=[train_x' test_x']';trainy=[train_y' test_y']';%
-                    [Ts,Ps,TVs,number_class]=ELMinProcessing(trainx,trainy,testx,testy);%P��ѵ�����ݣ�T��ѵ����ǩ��TV�ǲ��Լ�
+                    [Ts,Ps,TVs,number_class]=inProcessing(trainx,trainy,testx,testy);%P��ѵ�����ݣ�T��ѵ����ǩ��TV�ǲ��Լ�
                     TVP=TVs.P;
                     n = size(Ts,2);
                     for i=1:200
@@ -35,11 +35,8 @@ for I=3:3
                             labels(i,1)=0;labels(i,2)=1;
                         end
                     end
-                    %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%-------------mutiplekernel
-                    [Kern,Y]=makeKmatrix( Ps', Ts',[],Kernel_para);
-                    [gamma1,alpha1,obj1] = mkMulticlassELM(Kern,C,Y,qnorm);
-                    %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%---------------------multiplekernel-TCA
-                    [ZMs,ZMt,AM] = TCA_multipleK(Ps',TVP',Ts',Kernel_para,gamma1);
+                   
+                    [ZMs,ZMt,AM] = DA_CORAL(Ps',TVP',Ts');
                     theta = 0.005 * randn(numClasses * inputSize, 1);
                     options.maxIter = 50;
                     ZXMs=ZMs;
