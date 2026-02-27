@@ -1,0 +1,97 @@
+clear all;
+clc;
+
+qnorm=2;
+type = 'function estimation';
+
+Cx=[0.001 0.005 0.01 0.05 0.1 0.5 1 5 10 50 100 500];
+deta=[0.001 0.005 0.01 0.05 0.1 0.5 1 5 10 50 100 500];
+para1=[0.001 0.005 0.01 0.05 0.1 0.5 1 5 10 50 100 500];
+
+for M=1:54
+    Dataset = ['CSP3forDA\testDA1S', num2str(M), '.mat'];
+    load(Dataset);
+    trainx=[train_x' test_x']';trainy=[train_y' test_y']';%testx=[train_x' test_x']';testy=[train_y' test_y']';%
+    Dataset = ['CSP3forDA\testDA2S', num2str(M), '.mat'];
+    load(Dataset);
+    testx=[train_x' test_x']';testy=[train_y' test_y']';%trainx=[train_x' test_x']';trainy=[train_y' test_y']';%
+    [Ts,Ps,TVs,number_class]=ELMinProcessing(trainx,trainy,testx,testy);%P��ѵ�����ݣ�T��ѵ����ǩ��TV�ǲ��Լ�
+    TVP=TVs.P;
+    n = size(Ts,2);
+    for i=1:200
+        if trainy(i)==1
+            train2y(:,i)=[1 0]';
+        else
+            train2y(:,i)=[0 1]';
+        end
+        if testy(i)==1
+            test2y(:,i)=[1 0]';
+        else
+            test2y(:,i)=[0 1]';
+        end
+    end
+    %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%-------------CROAL
+    [Zs, ZtP]=DA_CORAL(Ps',trainy',TVP');
+     %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%----mutiplekernel-ELM
+    for KC=1:12
+        for Kd=1:12
+            for Kp=1:12
+                Kernel_para=[deta(Kd) para1(Kp) 2];
+                C=Cx(KC);
+                [Kern,Y]=makeKmatrix( Zs, Ts',[],Kernel_para);
+                [gamma1,alpha1,obj1] = mkMulticlassELM(Kern,C,Y,qnorm);
+                [K_train,a1e]=makeKmatrix(Zs,Ts',[],Kernel_para);
+                Omega_train=sumKbeta(K_train,gamma1);
+                OutputWeight=((Omega_train+speye(n)/C)\(Ts'));
+                [K_test,a2e]=makeKmatrix(Zs,Ts',ZtP,Kernel_para);
+                Omega_test = sumKbeta(K_test,gamma1);
+                TY=(Omega_test' * OutputWeight)';
+                TestAccuracy_elm_CR(KC,Kd,Kp,M)=GetAccuracy(TVs.T,TY);
+            end
+        end
+    end
+    %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%------------LDA
+    cf_param=train_RLDAshrink(Zs',train2y);
+    cf_out= real(ZtP *cf_param.w+repmat(cf_param.b', size(ZtP,1),1));
+    loss_lda=1-eval_calLoss(test2y, cf_out);
+    Acc_lda_CR(M)=loss_lda;
+    %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%---------------------multiplekernel-TCA
+    [gam,sig2] = tunelssvm({Zs,trainy,type,[],[],'RBF_kernel'},'simplex','leaveoneoutlssvm',{'mse'});
+    [alpha,b] = trainlssvm({Zs,trainy,type,gam,sig2,'RBF_kernel'});
+    pre_train_y=simlssvm({Zs,trainy,type,gam,sig2,'RBF_kernel','preprocess'},{alpha,b},ZtP);
+    num=0;
+    for i=1:200
+        if pre_train_y(i)==testy(i);
+            num=num+1;
+        end
+    end
+    loss_svm=num/200;
+    Acc_svm_CR(M)=loss_svm;
+end
+
+TestAccuracy_elm_SA=TestAccuracy_elm_CR;
+x_elm=TestAccuracy_elm_CR;
+
+for i=1:12
+    for j=1:12
+        for k=1:12
+            x_elm_mean(i,j,k)=mean(squeeze(x_elm(i,j,k,:)));
+        end
+    end
+end
+
+xmax_elm=max(max(max(x_elm_mean)));
+
+for i=1:12
+    for j=1:12
+        for k=1:12
+            if(x_elm_mean(i,j,k)==xmax_elm)
+                elm_max_index=[i j k];
+            end
+        end
+    end
+end
+
+Acc_elm_CR=squeeze(TestAccuracy_elm_CR(elm_max_index(1),elm_max_index(2),elm_max_index(3),:))';
+
+save('C3_Classifier_CR_AB_all.mat','TestAccuracy_elm_CR','Acc_elm_CR','Acc_lda_CR','Acc_svm_CR');
