@@ -1,0 +1,40 @@
+function [Sim_Trn,Sim_Tst]= DA_CORAL(src,srclbl, tgt)
+
+round = 20;
+nPerClass = 10;
+Source=src;
+Source_lbl=srclbl;
+
+Xtt = tgt;
+% Ytt = Target_lbl;
+
+ for iter = 1 : round
+     inds = split(Source_lbl, nPerClass);
+    Xr = Source;%(inds,:);
+    Yr = Source_lbl;%(inds);
+    %CORAL
+    cov_source = cov(Xr) + eye(size(Xr, 2));
+    cov_target = cov(Xtt) + eye(size(Xtt, 2));
+    A_coral = cov_source^(-1/2)*cov_target^(1/2);
+    Sim_coral = Xr * A_coral * Xtt';
+ end
+    
+    Sim_Trn = Xr * A_coral *  Xr';
+    index = [1:1:size(Sim_coral,1)]';
+    Sim_Tst=[[1:1:size(Sim_coral,2)]' Sim_coral'];
+    Sim_Trn = [index Sim_Trn ];
+end
+
+function [idx1 idx2] = split(Y,nPerClass, ratio)
+% [idx1 idx2] = split(X,Y,nPerClass)
+idx1 = [];  idx2 = [];
+for C = 1 : max(Y)
+    idx = find(Y == C);
+    rn = randperm(length(idx));
+    if exist('ratio')
+        nPerClass = floor(length(idx)*ratio);
+    end
+    idx1 = [idx1; idx( rn(1:min(nPerClass,length(idx))) ) ];
+    idx2 = [idx2; idx( rn(min(nPerClass,length(idx))+1:end) ) ];
+end
+end
