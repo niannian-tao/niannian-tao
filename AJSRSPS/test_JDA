@@ -31,22 +31,7 @@ for M=1:15
     for KC=1:12
         for Kd=1:12
             for Kp=1:12
-                Kernel_para=[deta(Kd) para1(Kp) 2];
-                C=Cx(KC);
-                %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%-------------mutiplekernel
-                [Kern,Y]=makeKmatrix( Ps', Ts',[],Kernel_para);
-                [gamma1,alpha1,obj1] = mkMulticlassELM(Kern,C,Y,qnorm);
-                %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%---------------------------ELM
-                [K_train,a1e]=makeKmatrix(Ps',Ts',[],Kernel_para);
-                Omega_train=sumKbeta(K_train,gamma1);
-                OutputWeight=((Omega_train+speye(n)/C)\(Ts'));
-                [K_test,a2e]=makeKmatrix(Ps',Ts',TVP',Kernel_para);
-                Omega_test = sumKbeta(K_test,gamma1);
-                TY=(Omega_test' * OutputWeight)';
-                TestAccuracy_elm(KC,Kd,Kp,M)=GetAccuracy(TVs.T,TY);
-                %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%---------------------------ELM
-                
-                [ZMs,ZMt,AM] = TCA_multipleK(Ps',TVP',Ts',Kernel_para,gamma1);
+                [ZMs,ZMt,AM] = DA_CORAL(Ps',TVP',Ts');
                 theta = 0.005 * randn(numClasses * inputSize, 1);
                 options.maxIter = 50;
                 ZXMs=ZMs;
