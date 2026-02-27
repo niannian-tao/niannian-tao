@@ -1,0 +1,127 @@
+clear all;
+clc;
+
+qnorm=2;
+PT=[0.9 0.8 0.7 0.6 0.5];
+
+Cx=[0.001 0.005 0.01 0.05 0.1 0.5 1 5 10 50 100 500];
+deta=[0.001 0.005 0.01 0.05 0.1 0.5 1 5 10 50 100 500];
+para1=[0.001 0.005 0.01 0.05 0.1 0.5 1 5 10 50 100 500];
+
+inputSize = 6 * 1; % Size of input vector (MNIST images are 28x28)
+numClasses = 2;     % Number of classes (MNIST images fall into 10 classes)
+lambda = 1e-4; % Weight decay parameter
+
+for I=3:3
+    for KC=6:6
+        for Kd=9:9
+            for Kp=7:7
+                Kernel_para=[deta(Kd) para1(Kp) 2];
+                C=Cx(KC);
+                for M=30:30
+                    Dataset = ['CSP3forDA\testDA1S', num2str(M), '.mat'];
+                    load(Dataset);
+                    trainx=[train_x' test_x']';trainy=[train_y' test_y']';%testx=[train_x' test_x']';testy=[train_y' test_y']';%
+                    Dataset = ['CSP3forDA\testDA2S', num2str(M), '.mat'];
+                    load(Dataset);
+                    testx=[train_x' test_x']';testy=[train_y' test_y']';%trainx=[train_x' test_x']';trainy=[train_y' test_y']';%
+                    [Ts,Ps,TVs,number_class]=ELMinProcessing(trainx,trainy,testx,testy);%P��ѵ�����ݣ�T��ѵ����ǩ��TV�ǲ��Լ�
+                    TVP=TVs.P;
+                    n = size(Ts,2);
+                    for i=1:200
+                        if(trainy(i)==1)
+                            labels(i,1)=1;labels(i,2)=0;
+                        else
+                            labels(i,1)=0;labels(i,2)=1;
+                        end
+                    end
+                    %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%-------------mutiplekernel
+                    [Kern,Y]=makeKmatrix( Ps', Ts',[],Kernel_para);
+                    [gamma1,alpha1,obj1] = mkMulticlassELM(Kern,C,Y,qnorm);
+                    %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%---------------------multiplekernel-TCA
+                    [ZMs,ZMt,AM] = TCA_multipleK(Ps',TVP',Ts',Kernel_para,gamma1);
+                    theta = 0.005 * randn(numClasses * inputSize, 1);
+                    options.maxIter = 50;
+                    ZXMs=ZMs;
+                    labelxs=labels;
+                    for iT=1:I
+                        for xk=1:5
+                            theta = 0.005 * randn(numClasses * inputSize, 1);
+                            [cost, grad] = softmaxCost(theta, numClasses, inputSize, lambda, ZXMs', labelxs');
+                            softmaxModel = softmaxTrain(inputSize, numClasses, lambda,ZXMs', labelxs', options);
+                            [px,pred] = softmaxPredict(softmaxModel, ZMt');
+%                             TestAcc(M,xk) = mean(testy(:) == pred(:));
+                            [pselab,pseindex]=max(px');
+                            mm=0;
+                            for ci=1:200
+                                if(pselab(ci)>PT(iT))
+                                    mm=mm+1;
+                                    ZMTS(mm,:)=ZMt(ci,:);
+                                    psex(mm)=pseindex(i);
+                                end
+                            end
+                            if(mm==0)
+                                ZMTS=[];
+                                testpse=0;
+                                ZXMss=ZMs;
+                                labelxss=labels;
+                            else
+                                ZXMss=[ZMs' ZMTS']';
+                                for xx=1:mm
+                                    if(psex(xx)==1)
+                                        labelts(xx,1)=1;labelts(xx,2)=0;
+                                    else
+                                        labelts(xx,1)=0;labelts(xx,2)=1;
+                                    end
+                                end
+                                labelxss=[labels' labelts']';
+                            end
+                            ZXMs=ZXMss(1:200+mm,:);
+                            labelxs=labelxss(1:200+mm,:);
+                        end
+                    end
+                    [ZMsc]=classTST(ZMs,trainy,ZMTS,psex');
+                    [K_train,a1m]=makeKmatrix(ZMsc,Ts',[],Kernel_para);
+                    Omega_train=sumKbeta(K_train,gamma1);
+                    OutputWeight=((Omega_train+speye(n)/C)\(Ts'));
+                    [K_test,a2m]=makeKmatrix(ZMsc,Ts',ZMt,Kernel_para);
+                    Omega_test = sumKbeta(K_test,gamma1);
+                    TY=(Omega_test' * OutputWeight)';
+                    TestAccuracy_softmax_TST(KC,Kd,Kp,M)=GetAccuracy(TVs.T,TY);
+                end
+            end
+        end
+    end
+end
+
+% x_softmax_TST=TestAccuracy_softmax_TST;
+% 
+% for a=1:5
+%     for i=1:12
+%         for j=1:12
+%             for k=1:12
+%                 x_TST_mean(a,i,j,k)=mean(squeeze(x_softmax_TST(a,i,j,k,:)));
+%             end
+%         end
+%     end
+% end
+% 
+% 
+%     xmax_TST(a)=max(max(max(squeeze(x_TST_mean(a,:,:,:)))));
+% 
+% for a=1:5
+%     for i=1:12
+%         for j=1:12
+%             for k=1:12
+%                 if(x_TST_mean(a,i,j,k)==xmax_TST(a))
+%                 TST_max_index(a,:)=[i j k];
+%                 end
+%             end
+%         end
+%     end
+% end
+% for a=1:5
+%     Acc_soft_TST(a,:)=squeeze(TestAccuracy_softmax_TST(a,TST_max_index(1),TST_max_index(2),TST_max_index(3),:))';
+% end
+
+save('C3_01_elm_softmax_1_30_TST_AB_all.mat','TestAccuracy_softmax_TST');
